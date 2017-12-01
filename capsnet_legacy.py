@@ -21,13 +21,18 @@ def margin_loss(output, y):
     :param y_pred: [None, num_capsule]
     :return: a scalar loss value.
     """
-    n_class = output.shape[-1]
-    y_vec = tf.one_hot(y, n_class, dtype=tf.float32)
+    # n_class = output.get_shape()[-1]
+    # y_vec = tf.one_hot(y, n_class, dtype=tf.float32)
 
-    L = y_vec * tf.square(tf.maximum(0., 0.9 - output)) + \
-        0.5 * (1 - y_vec) * tf.square(tf.maximum(0., output- 0.1))
+    # L = y_vec * tf.square(tf.maximum(0., 0.9 - output)) + \
+    #     0.5 * (1 - y_vec) * tf.square(tf.maximum(0., output- 0.1))
 
-    return tf.reduce_mean(tf.reduce_sum(L, axis=1))
+    # return tf.reduce_mean(tf.reduce_sum(L, axis=1))
+    loss = tf.losses.sparse_softmax_cross_entropy(labels=y, logits=output)
+    # regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+
+    # return tf.add_n([loss] + regularization)
+    return loss
 
 
 def squash(vectors, axis=-1):
@@ -41,23 +46,16 @@ def squash(vectors, axis=-1):
     Returns:
     	A Tensor with same shape as input vectors.
     """
-    s_squared_norm = tf.reduce_sum(tf.square(vectors), axis=axis, keepdims=True)
+    s_squared_norm = tf.reduce_sum(tf.square(vectors), axis=axis, keep_dims=True)
     scale = s_squared_norm / (1 + s_squared_norm) / tf.sqrt(s_squared_norm +
-                                                            tf.epsilon())
+                                                            tf.keras.backend.epsilon())
     return scale * vectors
 
 
 def build_arch(input, is_train: bool, num_classes: int):
     data_size = input.shape[1]
-	# Xavier initialization is necessary here to provide higher stability
-    bias_initializer = tf.truncated_normal_initializer(
-		mean=0.0, stddev=0.01)
-	# The paper didnot mention any regularization, a common l2 regularizer to weights is added here
-    weights_regularizer = tf.contrib.layers.l2_regularizer(5e-04)
 
-    with slim.arg_scope([slim.conv2d], trainable=is_train,
-						bias_initializer=bias_initializer,
-						weights_regularizer=weights_regularizer):
+    with slim.arg_scope([slim.conv2d], trainable=is_train):
 
         with tf.variable_scope('relu_conv1') as scope:
 			# Ordinary conv2d with ReLU activation.
@@ -66,9 +64,9 @@ def build_arch(input, is_train: bool, num_classes: int):
             stride=1
             output = slim.conv2d(input, num_outputs=n_filters,
             					 kernel_size=[kernel, kernel],
-            					 strides=stride, padding='VALID',
+            					 stride=stride, padding='VALID',
             					 activation_fn=tf.nn.relu, scope=scope)
-            data_size = (data_size - kernel//2) // stride
+            data_size = (data_size - kernel//2*2) // stride
             assert output.get_shape() == [cfg.batch_size, data_size, data_size, n_filters]
 
         with tf.variable_scope('primary_caps') as scope:
@@ -80,16 +78,16 @@ def build_arch(input, is_train: bool, num_classes: int):
             stride=2
             output = slim.conv2d(output, num_outputs=dim_capsule*n_channels,
 								 kernel_size=[kernel, kernel],
-								 strides=stride, padding='VALID',
+								 stride=stride, padding='VALID',
 								 activation_fn=None, scope=scope)
-            data_size = (data_size - kernel//2) // stride
+            data_size = (data_size - kernel//2*2) // stride
             output = tf.reshape(output, shape=[cfg.batch_size,
 											   data_size*data_size*n_channels,
 											   dim_capsule])
 
 			# Squash the capsule vectors.
             output = tf.map_fn(lambda x: squash(x), output)
-            assert ouput.get_shape() == [cfg.batch_size, data_size*data_size*n_channels, dim_capsule]
+            assert output.get_shape() == [cfg.batch_size, data_size*data_size*n_channels, dim_capsule]
     
         with tf.variable_scope('digit_caps') as scope:
 			# Capsule layer, routing algorithm works here.
@@ -103,8 +101,7 @@ def build_arch(input, is_train: bool, num_classes: int):
             W = slim.variable('W', dtype=tf.float32,
 							  shape=[num_capsule, input_num_capsule,
 									 dim_capsule, input_dim_capsule],
-							  initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1.0),
-							  regularizer=weights_regularizer)
+							  initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1.0))
 
 			# inputs.shape=[None, input_num_capsule, input_dim_capsule]
 		    # inputs_expand.shape=[None, 1, input_num_capsule, input_dim_capsule]
@@ -120,7 +117,7 @@ def build_arch(input, is_train: bool, num_classes: int):
 		    # regard the first two dimensions as `batch` dimension,
 		    # then matmul: [input_dim_capsule] x [dim_capsule, input_dim_capsule]^t -> [dim_capsule].
 		    # inputs_hat.shape = [none, num_capsule, input_num_capsule, dim_capsule]
-            input_hat = tf.map_fn(lambda x: tf.batch_dot(x, w, [2, 3]), input_tiled)
+            input_hat = tf.map_fn(lambda x: tf.keras.backend.batch_dot(x, W, [2, 3]), input_tiled)
 
 		    # begin: routing algorithm ---------------------------------------------------------------------#
 		    # in forward pass, `inputs_hat_stopped` = `inputs_hat`;
@@ -144,18 +141,18 @@ def build_arch(input, is_train: bool, num_classes: int):
 			        # The first two dimensions as `batch` dimension,
 			        # then matmal: [input_num_capsule] x [input_num_capsule, dim_capsule] -> [dim_capsule].
 			        # outputs.shape=[None, num_capsule, dim_capsule]
-                    output = squash(tf.batch_dot(c, input_hat, [2, 2]))  # [None, 10, 16]
+                    output = squash(tf.keras.backend.batch_dot(c, input_hat, [2, 2]))  # [None, 10, 16]
                 else:
 			        # Otherwise, use `inputs_hat_stopped` to update `b`.
 			        # No gradients flow on this path.
-                    output = squash(tf.batch_dot(c, input_hat_stopped, [2, 2]))
+                    output = squash(tf.keras.backend.batch_dot(c, input_hat_stopped, [2, 2]))
 
 			        # outputs.shape = [None, num_capsule, dim_capsule]
 			        # inputs_hat.shape = [None, num_capsule, input_num_capsule, dim_capsule]
 			        # The first two dimensions as `batch` dimension,
 			        # then matmal: [dim_capsule] x [input_num_capsule, dim_capsule]^T -> [input_num_capsule].
 			        # b.shape=[batch_size, num_capsule, input_num_capsule]
-                    b += tf.batch_dot(outputs, inputs_hat_stopped, [2, 3])
+                    b += tf.keras.backend.batch_dot(output, input_hat_stopped, [2, 3])
 			# End: Routing algorithm -----------------------------------------------------------------------#
 	
         with tf.variable_scope('classify') as scope:
@@ -169,3 +166,5 @@ def build_arch(input, is_train: bool, num_classes: int):
 		    output: shape=[None, num_vectors]
             """
             out_caps = tf.sqrt(tf.reduce_sum(tf.square(output), axis=-1))
+
+    return out_caps
