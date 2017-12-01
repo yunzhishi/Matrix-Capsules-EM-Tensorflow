@@ -49,6 +49,7 @@ def main(args):
 
         """Set tf summaries."""
         summaries = []
+        valid_sum = []
 
         """Use exponential decay leanring rate?"""
         lrn_rate = tf.maximum(tf.train.exponential_decay(1e-3, global_step, num_batches_per_epoch, 0.8), 1e-5)
@@ -56,11 +57,11 @@ def main(args):
         opt = tf.train.AdamOptimizer()#lrn_rate
 
         """Get batch from data queue."""
-        is_train = tf.placeholder(dtype=tf.bool, shape=())
-        if is_train:
-            batch_x, batch_labels = create_inputs()
-        else:
-            batch_x, batch_labels = test_inputs()
+        train_q = create_inputs()
+        test_q = test_inputs()
+        use_train_data = tf.placeholder(dtype=tf.bool,shape=())
+        batch_x, batch_labels = tf.cond(use_train_data,
+            true_fn=lambda: train_q, false_fn=lambda:test_q)
         # batch_y = tf.one_hot(batch_labels, depth=10, axis=1, dtype=tf.float32)
 
         """Define the dataflow graph."""
@@ -71,7 +72,7 @@ def main(args):
                 #                         num_classes=num_classes)
                 # # loss = net.cross_ent_loss(output, batch_labels)
                 # loss = net.spread_loss(output, batch_labels, m_op)
-                output = net.build_arch(batch_x, is_train=is_train,
+                output = net.build_arch(batch_x, is_train=True,
                                         num_classes=num_classes)
                 loss = net.margin_loss(output, batch_labels)
                 acc = net.accuracy(output, batch_labels)
@@ -80,12 +81,10 @@ def main(args):
             grad = opt.compute_gradients(loss)
 
         """Add to summary."""
-        if is_train:
-            summaries.append(tf.summary.scalar('loss', loss))
-            summaries.append(tf.summary.scalar('acc', acc))
-        else:
-            summaries.append(tf.summary.scalar('val_loss', loss))
-            summaries.append(tf.summary.scalar('val_acc', acc))
+        summaries.append(tf.summary.scalar('loss', loss))
+        summaries.append(tf.summary.scalar('acc', acc))
+        valid_sum.append(tf.summary.scalar('val_loss', loss))
+        valid_sum.append(tf.summary.scalar('val_acc', acc))
 
         """Apply graident."""
         train_op = opt.apply_gradients(grad, global_step=global_step)
@@ -113,6 +112,7 @@ def main(args):
         # saver.restore(sess, latest)
         """Set summary op."""
         summary_op = tf.summary.merge(summaries)
+        valid_sum_op = tf.summary.merge(valid_sum)
 
         """Start coord & queue."""
         coord = tf.train.Coordinator()
@@ -132,7 +132,7 @@ def main(args):
 
             """"TF queue would pop batch until no file"""
             _, loss_value, acc_value = sess.run([train_op, loss, acc],
-                                                 feed_dict={is_train: True,
+                                                 feed_dict={use_train_data: True,
                                                             m_op: m})
             # logger.info('%d iteration finishs in ' % step + '%f second' %
             #             (time.time() - tic) + ' loss=%f' % loss_value)
@@ -144,7 +144,8 @@ def main(args):
 
             """Write to summary."""
             if step % 100 == 0:
-                summary_str = sess.run(summary_op, feed_dict={m_op: m})
+                summary_str = sess.run(summary_op, feed_dict={use_train_data: True,
+                                                              m_op: m})
                 summary_writer.add_summary(summary_str, step)
 
             """Epoch wise linear annealling."""
@@ -160,6 +161,9 @@ def main(args):
 
             # Add a new progress bar
             if ((step+1) % num_batches_per_epoch) == 0:
+                valid_sum_str = sess.run(valid_sum_op, feed_dict={use_train_data: False,
+                                                                  m_op: m})
+                summary_writer.add_summary(valid_sum_str, step)
                 print('')
                 logger.info('Epoch %d/%d in ' % (step//num_batches_per_epoch+1, cfg.epoch)
                             + '%.1fs' % (time.time() - tic) + ' - loss: %f' % loss_value)

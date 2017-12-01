@@ -183,7 +183,7 @@ def build_arch(input, coord_add, is_train: bool, num_classes: int):
     return output
 
 
-def test_accuracy(logits, labels):
+def accuracy(logits, labels):
     logits_idx = tf.to_int32(tf.argmax(logits, axis=1))
     logits_idx = tf.reshape(logits_idx, shape=(cfg.batch_size,))
     correct_preds = tf.equal(tf.to_int32(labels), logits_idx)
