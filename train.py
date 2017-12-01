@@ -10,7 +10,8 @@ from config import cfg, get_coord_add, get_dataset_size_train, get_num_classes, 
 import time
 import numpy as np
 import os
-import capsnet_em as net
+# import capsnet_em as net
+import capsnet_legacy as net
 
 import logging
 import daiquiri
@@ -56,10 +57,13 @@ def main(args):
         m_op = tf.placeholder(dtype=tf.float32, shape=())
         with tf.device('/gpu:0'):
             with slim.arg_scope([slim.variable], device='/cpu:0'):
-                output = net.build_arch(batch_x, coord_add, is_train=True,
+                # output = net.build_arch(batch_x, coord_add, is_train=True,
+                #                         num_classes=num_classes)
+                # # loss = net.cross_ent_loss(output, batch_labels)
+                # loss = net.spread_loss(output, batch_labels, m_op)
+                output = net.build_arch(batch_x, is_train=True,
                                         num_classes=num_classes)
-                # loss = net.cross_ent_loss(output, batch_labels)
-                loss = net.spread_loss(output, batch_labels, m_op)
+                loss = net.margin_loss(output, batch_labels)
 
             """Compute gradient."""
             grad = opt.compute_gradients(loss)
@@ -107,8 +111,9 @@ def main(args):
         m = m_min
         for step in range(cfg.epoch * num_batches_per_epoch):
             if (step % num_batches_per_epoch) == 0:
+                tic = time.time()
                 progbar = tf.keras.utils.Progbar(num_batches_per_epoch)
-            tic = time.time()
+
             """"TF queue would pop batch until no file"""
             _, loss_value = sess.run([train_op, loss], feed_dict={m_op: m})
             # logger.info('%d iteration finishs in ' % step + '%f second' %
@@ -120,7 +125,7 @@ def main(args):
             assert not np.isnan(loss_value), 'loss is nan'
 
             """Write to summary."""
-            if step % 10 == 0:
+            if step % 100 == 0:
                 summary_str = sess.run(summary_op, feed_dict={m_op: m})
                 summary_writer.add_summary(summary_str, step)
 
@@ -134,6 +139,12 @@ def main(args):
                 """Save model periodically"""
                 ckpt_path = os.path.join(cfg.logdir, 'model-{}.ckpt'.format(round(loss_value, 4)))
                 saver.save(sess, ckpt_path, global_step=step)
+
+            # Add a new progress bar
+            if ((step+1) % num_batches_per_epoch) == 0:
+                print('')
+                logger.info('Epoch %d/%d ' % (step//num_batches_per_epoch+1, cfg.epoch)
+                            + '%.1f second' % (time.time() - tic) + ' loss=%f' % loss_value)
 
         """Join threads"""
         coord.join(threads)
