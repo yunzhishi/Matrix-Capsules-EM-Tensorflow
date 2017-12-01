@@ -26,9 +26,12 @@ def main(args):
     dataset_name = args[1]
     logger.info('Using dataset: {}'.format(dataset_name))
     coord_add = get_coord_add(dataset_name)
-    dataset_size = get_dataset_size_train(dataset_name)
     num_classes = get_num_classes(dataset_name)
+
+    dataset_size = get_dataset_size_train(dataset_name)
+    dataset_size_test = get_dataset_size_test(dataset_name)
     create_inputs = get_create_inputs(dataset_name, is_train=True, epochs=cfg.epoch)
+    test_inputs = get_create_inputs(dataset_name, is_train=False, epochs=1)
 
     """Set reproduciable random seed"""
     tf.set_random_seed(1234)
@@ -40,6 +43,7 @@ def main(args):
 
         """Get batches per epoch."""
         num_batches_per_epoch = int(dataset_size / cfg.batch_size)
+        num_batches_test = int(dataset_size_test / cfg.batch_size)
 
         """Set tf summaries."""
         summaries = []
@@ -51,6 +55,7 @@ def main(args):
 
         """Get batch from data queue."""
         batch_x, batch_labels = create_inputs()
+        test_x, test_labels = test_inputs()
         # batch_y = tf.one_hot(batch_labels, depth=10, axis=1, dtype=tf.float32)
 
         """Define the dataflow graph."""
@@ -64,12 +69,21 @@ def main(args):
                 output = net.build_arch(batch_x, is_train=True,
                                         num_classes=num_classes)
                 loss = net.margin_loss(output, batch_labels)
+                test_output = net.build_arch(test_x, is_train=False,
+                                             num_classes=num_classes)
+                val_loss = net.margin_loss(test_output, test_labels)
+
+                acc = net.accuracy(output, batch_labels)
+                val_acc = net.accuracy(test_output, test_labels)
 
             """Compute gradient."""
             grad = opt.compute_gradients(loss)
 
-        """Add loss to summary."""
-        summaries.append(tf.summary.scalar('spread_loss', loss))
+        """Add to summary."""
+        summaries.append(tf.summary.scalar('loss', loss))
+        summaries.append(tf.summary.scalar('acc', acc))
+        summaries.append(tf.summary.scalar('val_loss', test_loss))
+        summaries.append(tf.summary.scalar('val_acc', val_acc))
 
         """Apply graident."""
         train_op = opt.apply_gradients(grad, global_step=global_step)
@@ -115,11 +129,12 @@ def main(args):
                 progbar = tf.keras.utils.Progbar(num_batches_per_epoch)
 
             """"TF queue would pop batch until no file"""
-            _, loss_value = sess.run([train_op, loss], feed_dict={m_op: m})
+            _, loss_value, acc_value = sess.run([train_op, loss, acc],
+                                                 feed_dict={m_op: m})
             # logger.info('%d iteration finishs in ' % step + '%f second' %
             #             (time.time() - tic) + ' loss=%f' % loss_value)
             progbar.update((step % num_batches_per_epoch),
-                           values=[('loss', loss_value)])
+                           values=[('loss', loss_value), ('acc', acc_value)])
 
             """Check NaN"""
             assert not np.isnan(loss_value), 'loss is nan'
@@ -143,8 +158,8 @@ def main(args):
             # Add a new progress bar
             if ((step+1) % num_batches_per_epoch) == 0:
                 print('')
-                logger.info('Epoch %d/%d ' % (step//num_batches_per_epoch+1, cfg.epoch)
-                            + '%.1f second' % (time.time() - tic) + ' loss=%f' % loss_value)
+                logger.info('Epoch %d/%d in ' % (step//num_batches_per_epoch+1, cfg.epoch)
+                            + '%.1fs' % (time.time() - tic) + ' - loss: %f' % loss_value)
 
         """Join threads"""
         coord.join(threads)
