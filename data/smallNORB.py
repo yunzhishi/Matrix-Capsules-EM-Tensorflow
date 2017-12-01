@@ -86,7 +86,7 @@ def write_data_to_tfrecord(kind: str, chunkify=False):
         '''
 
         """Write to tfrecord"""
-        writer = tf.python_io.TFRecordWriter("./" + kind + "%d.tfrecords" % j)
+        writer = tf.python_io.TFRecordWriter("./smallNORB/" + kind + "%d.tfrecords" % j)
         for i in range(num_images):
             if i % 100 == 0:
                 logger.debug('Write ' + kind + ' images %d' % ((j + 1) * i))
@@ -146,7 +146,7 @@ def test(is_train=True):
     else:
         CHUNK_RE = re.compile(r"test\d+\.tfrecords")
 
-    processed_dir = './data'
+    processed_dir = './smallNORB/'
     # 2. parse them into a list of file name
     chunk_files = [os.path.join(processed_dir, fname)
                    for fname in os.listdir(processed_dir)

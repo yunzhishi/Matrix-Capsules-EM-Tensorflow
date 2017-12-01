@@ -21,7 +21,7 @@ def create_inputs_norb(is_train: bool, epochs: int):
     else:
         CHUNK_RE = re.compile(r"test\d+\.tfrecords")
 
-    processed_dir = './data'
+    processed_dir = './data/smallNORB/'
     chunk_files = [os.path.join(processed_dir, fname)
                    for fname in os.listdir(processed_dir)
                    if CHUNK_RE.match(fname)]

@@ -106,11 +106,15 @@ def main(args):
         m_max = 0.9
         m = m_min
         for step in range(cfg.epoch * num_batches_per_epoch):
+            if (step % num_batches_per_epoch) == 0:
+                progbar = tf.keras.utils.Progbar(num_batches_per_epoch)
             tic = time.time()
             """"TF queue would pop batch until no file"""
             _, loss_value = sess.run([train_op, loss], feed_dict={m_op: m})
-            logger.info('%d iteration finishs in ' % step + '%f second' %
-                        (time.time() - tic) + ' loss=%f' % loss_value)
+            # logger.info('%d iteration finishs in ' % step + '%f second' %
+            #             (time.time() - tic) + ' loss=%f' % loss_value)
+            progbar.update((step % num_batches_per_epoch),
+                           values=[('loss', loss_value)])
 
             """Check NaN"""
             assert not np.isnan(loss_value), 'loss is nan'
