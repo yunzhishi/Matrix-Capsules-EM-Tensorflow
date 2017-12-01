@@ -161,11 +161,13 @@ def main(args):
 
             # Add a new progress bar
             if ((step+1) % num_batches_per_epoch) == 0:
+                val_loss_value, val_acc_value = (0.0, 0.0)
                 for i in range(num_batches_test):
-                    val_loss_value, val_acc_value += sess.run([loss, acc],
-                                                              feed_dict={use_train_data: False,
-                                                                         m_op: m})
-                val_loss_value, val_acc_value /= num_batches_test
+                    val_batch = sess.run([loss, acc], feed_dict={use_train_data: False,
+                                                                 m_op: m})
+                    val_loss_batch, val_acc_batch = val_batch
+                    val_loss_value += val_loss_batch / num_batches_test
+                    val_acc_value += val_acc_batch / num_batches_test
                 valid_sum_str = sess.run(valid_sum_op,
                                          feed_dict={use_train_data: False,
                                                     m_op: m})
