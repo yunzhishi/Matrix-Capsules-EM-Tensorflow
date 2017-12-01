@@ -21,18 +21,20 @@ def margin_loss(output, y):
     :param y_pred: [None, num_capsule]
     :return: a scalar loss value.
     """
-    # n_class = output.get_shape()[-1]
-    # y_vec = tf.one_hot(y, n_class, dtype=tf.float32)
+    n_class = output.get_shape()[-1]
+    y_vec = tf.one_hot(y, n_class, dtype=tf.float32)
 
-    # L = y_vec * tf.square(tf.maximum(0., 0.9 - output)) + \
-    #     0.5 * (1 - y_vec) * tf.square(tf.maximum(0., output- 0.1))
+    L = y_vec * tf.square(tf.maximum(0., 0.9 - output)) + \
+        0.5 * (1 - y_vec) * tf.square(tf.maximum(0., output- 0.1))
 
-    # return tf.reduce_mean(tf.reduce_sum(L, axis=1))
+    return tf.reduce_mean(tf.reduce_sum(L, axis=1))
+
+
+def cross_entropy_loss(output, y):
     loss = tf.losses.sparse_softmax_cross_entropy(labels=y, logits=output)
-    # regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+    regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
-    # return tf.add_n([loss] + regularization)
-    return loss
+    return tf.add_n([loss] + regularization)
 
 
 def squash(vectors, axis=-1):
