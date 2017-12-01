@@ -6,7 +6,9 @@ E-mail: zhangsuofei at njupt.edu.cn | hangyu5 at illinois.edu
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-from config import cfg, get_coord_add, get_dataset_size_train, get_num_classes, get_create_inputs
+from config import cfg, get_coord_add, \
+                   get_dataset_size_train, get_dataset_size_test, \
+                   get_num_classes, get_create_inputs
 import time
 import numpy as np
 import os
@@ -54,8 +56,11 @@ def main(args):
         opt = tf.train.AdamOptimizer()#lrn_rate
 
         """Get batch from data queue."""
-        batch_x, batch_labels = create_inputs()
-        test_x, test_labels = test_inputs()
+        is_train = tf.placeholder(dtype=tf.bool, shape=())
+        if is_train:
+            batch_x, batch_labels = create_inputs()
+        else:
+            batch_x, batch_labels = test_inputs()
         # batch_y = tf.one_hot(batch_labels, depth=10, axis=1, dtype=tf.float32)
 
         """Define the dataflow graph."""
@@ -66,24 +71,21 @@ def main(args):
                 #                         num_classes=num_classes)
                 # # loss = net.cross_ent_loss(output, batch_labels)
                 # loss = net.spread_loss(output, batch_labels, m_op)
-                output = net.build_arch(batch_x, is_train=True,
+                output = net.build_arch(batch_x, is_train=is_train,
                                         num_classes=num_classes)
                 loss = net.margin_loss(output, batch_labels)
-                test_output = net.build_arch(test_x, is_train=False,
-                                             num_classes=num_classes)
-                val_loss = net.margin_loss(test_output, test_labels)
-
                 acc = net.accuracy(output, batch_labels)
-                val_acc = net.accuracy(test_output, test_labels)
 
             """Compute gradient."""
             grad = opt.compute_gradients(loss)
 
         """Add to summary."""
-        summaries.append(tf.summary.scalar('loss', loss))
-        summaries.append(tf.summary.scalar('acc', acc))
-        summaries.append(tf.summary.scalar('val_loss', test_loss))
-        summaries.append(tf.summary.scalar('val_acc', val_acc))
+        if is_train:
+            summaries.append(tf.summary.scalar('loss', loss))
+            summaries.append(tf.summary.scalar('acc', acc))
+        else:
+            summaries.append(tf.summary.scalar('val_loss', loss))
+            summaries.append(tf.summary.scalar('val_acc', acc))
 
         """Apply graident."""
         train_op = opt.apply_gradients(grad, global_step=global_step)
@@ -130,7 +132,8 @@ def main(args):
 
             """"TF queue would pop batch until no file"""
             _, loss_value, acc_value = sess.run([train_op, loss, acc],
-                                                 feed_dict={m_op: m})
+                                                 feed_dict={is_train: True,
+                                                            m_op: m})
             # logger.info('%d iteration finishs in ' % step + '%f second' %
             #             (time.time() - tic) + ' loss=%f' % loss_value)
             progbar.update((step % num_batches_per_epoch),
