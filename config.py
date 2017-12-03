@@ -19,7 +19,7 @@ flags.DEFINE_float('epsilon', tf.keras.backend.epsilon(), 'epsilon')
 ################################
 flags.DEFINE_integer('A', 32, 'number of channels in output from ReLU Conv1')
 flags.DEFINE_integer('B', 8, 'number of capsules in output from PrimaryCaps')
-flags.DEFINE_integer('C', 16, 'number of channels in output from ConvCaps1')
+flags.DEFINE_integer('C', 8, 'number of channels in output from ConvCaps1')
 flags.DEFINE_integer('D', 16, 'number of channels in output from ConvCaps2')
 
 ############################
@@ -30,6 +30,8 @@ flags.DEFINE_boolean('is_train', True, 'train or predict phase')
 flags.DEFINE_integer('num_threads', 8, 'number of threads of enqueueing exampls')
 flags.DEFINE_string('logdir', 'logdir', 'logs directory')
 flags.DEFINE_string('test_logdir', 'test_logdir', 'test logs directory')
+flags.DEFINE_float('gpu_frac', 1.0, 'fraction of GPU memory to allocate')
+flags.DEFINE_boolean('progbar', False, 'display Keras-like progress bar')
 
 flags.DEFINE_string('network', 'conv',
     '''Network architecture, choose from ['conv', 'fc']''')

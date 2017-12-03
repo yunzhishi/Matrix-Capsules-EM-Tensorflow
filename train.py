@@ -50,9 +50,9 @@ def main(args):
         valid_sum = []
 
         """Use exponential decay leanring rate?"""
-        lrn_rate = tf.maximum(tf.train.exponential_decay(1e-3, global_step, num_batches_per_epoch, 0.8), 1e-5)
+        lrn_rate = tf.maximum(tf.train.exponential_decay(1e-2, global_step, num_batches_per_epoch, 0.8), 1e-5)
         summaries.append(tf.summary.scalar('learning_rate', lrn_rate))
-        opt = tf.train.AdamOptimizer()#lrn_rate
+        opt = tf.train.AdamOptimizer(lrn_rate)
 
         """Get batch from data queue."""
         train_q = create_inputs()
@@ -103,8 +103,10 @@ def main(args):
         train_op = opt.apply_gradients(grad, global_step=global_step)
 
         """Set Session settings."""
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=cfg.gpu_frac)
         sess = tf.Session(config=tf.ConfigProto(
-            allow_soft_placement=True, log_device_placement=False))
+            allow_soft_placement=True, log_device_placement=False,
+            gpu_options=gpu_options))
         sess.run(tf.local_variables_initializer())
         sess.run(tf.global_variables_initializer())
 
@@ -141,7 +143,8 @@ def main(args):
         for step in range(cfg.epoch * num_batches_per_epoch):
             if (step % num_batches_per_epoch) == 0:
                 tic = time.time()
-                progbar = tf.keras.utils.Progbar(num_batches_per_epoch)
+                progbar = tf.keras.utils.Progbar(num_batches_per_epoch,
+                                                 verbose=(1 if cfg.progbar else 0))
 
             """"TF queue would pop batch until no file"""
             _, loss_value, acc_value = sess.run([train_op, loss, acc],
