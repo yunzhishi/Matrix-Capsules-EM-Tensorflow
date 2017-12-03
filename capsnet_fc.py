@@ -110,7 +110,8 @@ def build_arch(input, is_train: bool, num_classes: int):
                                                dim_capsule])
 
             # Squash the capsule vectors.
-            output = tf.map_fn(lambda x: squash(x), output)
+            # output = tf.map_fn(lambda x: squash(x), output)
+            output = tf.keras.layers.Lambda(squash)(output)
             assert output.get_shape() == [cfg.batch_size, data_size*data_size*n_channels, dim_capsule]
     
         with tf.variable_scope('digit_caps') as scope:
@@ -141,7 +142,10 @@ def build_arch(input, is_train: bool, num_classes: int):
             # regard the first two dimensions as `batch` dimension,
             # then matmul: [input_dim_capsule] x [dim_capsule, input_dim_capsule]^t -> [dim_capsule].
             # inputs_hat.shape = [none, num_capsule, input_num_capsule, dim_capsule]
-            input_hat = tf.map_fn(lambda x: K.batch_dot(x, W, [2, 3]), input_tiled)
+            #input_hat = tf.map_fn(lambda x: K.batch_dot(x, W, [2, 3]), input_tiled)
+            def x_dot_W(x): return K.batch_dot(x, W, [2, 3])
+            input_hat = tf.keras.layers.Lambda(x_dot_W)(input_tiled)
+
 
             # begin: routing algorithm ---------------------------------------------------------------------#
             # in forward pass, `inputs_hat_stopped` = `inputs_hat`;
