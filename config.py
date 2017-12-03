@@ -39,6 +39,9 @@ def get_coord_add(dataset_name: str):
     options = {'mnist': ([[[8., 8.], [12., 8.], [16., 8.]],
                           [[8., 12.], [12., 12.], [16., 12.]],
                           [[8., 16.], [12., 16.], [16., 16.]]], 28.),
+               'cifar10': ([[[8., 8.], [12., 8.], [16., 8.]],
+                          [[8., 12.], [12., 12.], [16., 12.]],
+                          [[8., 16.], [12., 16.], [16., 16.]]], 28.),
                'smallNORB': ([[[8., 8.], [12., 8.], [16., 8.], [24., 8.]],
                               [[8., 12.], [12., 12.], [16., 12.], [24., 12.]],
                               [[8., 16.], [12., 16.], [16., 16.], [24., 16.]],
@@ -52,17 +55,17 @@ def get_coord_add(dataset_name: str):
 
 
 def get_dataset_size_train(dataset_name: str):
-    options = {'mnist': 60000, 'smallNORB': 23400 * 2}
+    options = {'mnist': 60000, 'cifar10': 50000, 'smallNORB': 23400 * 2}
     return options[dataset_name]
 
 
 def get_dataset_size_test(dataset_name: str):
-    options = {'mnist': 10000, 'smallNORB': 23400 * 2}
+    options = {'mnist': 10000, 'cifar10': 10000, 'smallNORB': 23400 * 2}
     return options[dataset_name]
 
 
 def get_num_classes(dataset_name: str):
-    options = {'mnist': 10, 'smallNORB': 5}
+    options = {'mnist': 10, 'cifar10': 10, 'smallNORB': 5}
     return options[dataset_name]
 
 
@@ -71,5 +74,6 @@ from utils import create_inputs_mnist, create_inputs_norb
 
 def get_create_inputs(dataset_name: str, is_train: bool, epochs: int):
     options = {'mnist': lambda: create_inputs_mnist(is_train),
+               'cifar10': lambda: create_inputs_cifar10(is_train),
                'smallNORB': lambda: create_inputs_norb(is_train, epochs)}
     return options[dataset_name]

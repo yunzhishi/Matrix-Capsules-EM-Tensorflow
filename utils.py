@@ -86,3 +86,39 @@ def load_mnist(path, is_training):
         return trX, trY
     else:
         return teX, teY
+    
+    
+def create_inputs_cifar10(is_train):
+    tr_x, tr_y = load_cifar10(cfg.dataset, is_train)
+    data_queue = tf.train.slice_input_producer([tr_x, tr_y], capacity=64 * 8)
+    x, y = tf.train.shuffle_batch(data_queue, num_threads=8, batch_size=cfg.batch_size, capacity=cfg.batch_size * 64, min_after_dequeue=cfg.batch_size * 32, allow_smaller_final_batch=False)
+    return (x, y)
+
+    
+def load_cifar10_batch(filename):
+    """ load single batch of cifar """
+    with open(filename, 'rb') as f:
+        datadict = load_pickle(f)
+        X = datadict['data']
+        Y = datadict['labels']
+        X = X.reshape(10000, 3, 32, 32).transpose(0,2,3,1).astype("float")
+        Y = np.array(Y)
+        return X, Y
+
+    
+def load_cifar10(path, is_training):
+    if is_training:
+        xs = []
+        ys = []
+        for b in range(1,6):
+            f = os.path.join(path, 'data_batch_%d' % (b, ))
+            X, Y = load_cifar10_batch(f)
+        trX = np.concatenate(xs)
+        trY = np.concatenate(ys)
+        del X, Y
+        trX = tf.convert_to_tensor(trX / 255., tf.float32)
+        return trX, trY
+    else:
+        teX, teY = load_CIFAR_batch(os.path.join(path, 'test_batch'))
+        teX = tf.convert_to_tensor(teX / 255., tf.float32)
+        return teX, teY
