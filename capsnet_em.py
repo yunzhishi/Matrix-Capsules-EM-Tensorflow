@@ -89,7 +89,7 @@ def mat_transform(input, caps_num_c, regularizer):
     # it has no relationship with the absolute values of w and votes
     # using weights with bigger stddev helps numerical stability
     w = slim.variable('w', shape=[1, caps_num_i, caps_num_c, 4, 4], dtype=tf.float32,
-                      initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1.0),
+                      initializer=tf.keras.initializers.glorot_uniform(),
                       regularizer=regularizer)
 
     w = tf.tile(w, [batch_size, 1, 1, 1, 1])
