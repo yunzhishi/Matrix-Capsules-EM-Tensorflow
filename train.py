@@ -184,7 +184,8 @@ def main(args):
                         m = m_max
 
                 """Save model periodically"""
-                ckpt_path = os.path.join(cfg.logdir, 'model-{}.ckpt'.format(round(loss_value, 4)))
+                ckpt_path = os.path.join(cfg.logdir,
+                                         'model-{0:.4f}}.ckpt'.format(loss_value))
                 saver.save(sess, ckpt_path, global_step=step)
 
             # Add a new progress bar
