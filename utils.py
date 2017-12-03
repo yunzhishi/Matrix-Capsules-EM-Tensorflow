@@ -116,12 +116,14 @@ def load_cifar10(path, is_training):
         for b in range(1,6):
             f = os.path.join(path, 'data_batch_%d' % (b, ))
             X, Y = load_cifar10_batch(f)
+            xs.append(X)
+            ys.append(Y)
         trX = np.concatenate(xs)
         trY = np.concatenate(ys)
         del X, Y
         trX = tf.convert_to_tensor(trX / 255., tf.float32)
         return trX, trY
     else:
-        teX, teY = load_CIFAR_batch(os.path.join(path, 'test_batch'))
+        teX, teY = load_cifar10_batch(os.path.join(path, 'test_batch'))
         teX = tf.convert_to_tensor(teX / 255., tf.float32)
         return teX, teY
