@@ -31,7 +31,7 @@ def main(args):
     dataset_size = get_dataset_size_train(dataset_name)
     dataset_size_test = get_dataset_size_test(dataset_name)
     create_inputs = get_create_inputs(dataset_name, is_train=True, epochs=cfg.epoch)
-    test_inputs = get_create_inputs(dataset_name, is_train=False, epochs=1)
+    test_inputs = get_create_inputs(dataset_name, is_train=False, epochs=cfg.epoch)
 
     """Set reproduciable random seed"""
     tf.set_random_seed(1234)
@@ -171,7 +171,7 @@ def main(args):
                 continue
 
             """Write to summary."""
-            if step % 100 == 0:
+            if step % 10 == 0:
                 summary_str = sess.run(summary_op, feed_dict={use_train_data: True,
                                                               m_op: m})
                 summary_writer.add_summary(summary_str, step)
