@@ -11,6 +11,27 @@ import numpy as np
 from config import cfg
 
 
+def spread_loss(output, y, m):
+    """
+    # See: https://stackoverflow.com/questions/40701712/how-to-check-nan-in-gradients-in-tensorflow-when-updating
+    output_check = [tf.check_numerics(output, message='NaN Found!')]
+    with tf.control_dependencies(output_check):
+    """
+    num_class = int(output.get_shape()[-1])
+    y_vec = tf.one_hot(y, num_class, dtype=tf.float32)
+
+    output1 = tf.reshape(output, shape=[cfg.batch_size, 1, num_class])
+    y_vec = tf.expand_dims(y_vec, axis=2)
+    at = tf.matmul(output1, y_vec)
+    """Paper eq(5)."""
+    loss = tf.square(tf.maximum(0., m - (at - output1)))
+    loss = tf.matmul(loss, 1. - y_vec)
+    loss = tf.reduce_sum(loss)
+
+    regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+    return tf.add_n([loss] + regularization)
+
+
 def margin_loss(output, y):
     """
     Margin loss for Eq.(4).

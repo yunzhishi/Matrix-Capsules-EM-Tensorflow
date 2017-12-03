@@ -6,45 +6,59 @@ E-mail: zhangsuofei at njupt.edu.cn
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-from config import cfg
 import numpy as np
 
-
-def cross_ent_loss(output, y):
-    loss = tf.losses.sparse_softmax_cross_entropy(labels=y, logits=output)
-    regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-    loss = tf.add_n([loss] + regularization)
-
-    return loss
+from config import cfg
 
 
 def spread_loss(output, y, m):
     """
-    # check NaN
     # See: https://stackoverflow.com/questions/40701712/how-to-check-nan-in-gradients-in-tensorflow-when-updating
     output_check = [tf.check_numerics(output, message='NaN Found!')]
     with tf.control_dependencies(output_check):
     """
-
     num_class = int(output.get_shape()[-1])
-    y = tf.one_hot(y, num_class, dtype=tf.float32)
+    y_vec = tf.one_hot(y, num_class, dtype=tf.float32)
 
     output1 = tf.reshape(output, shape=[cfg.batch_size, 1, num_class])
-    y = tf.expand_dims(y, axis=2)
-    at = tf.matmul(output1, y)
+    y_vec = tf.expand_dims(y_vec, axis=2)
+    at = tf.matmul(output1, y_vec)
     """Paper eq(5)."""
     loss = tf.square(tf.maximum(0., m - (at - output1)))
-    loss = tf.matmul(loss, 1. - y)
+    loss = tf.matmul(loss, 1. - y_vec)
     loss = tf.reduce_sum(loss)
 
     regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-    loss = tf.add_n([loss] + regularization)
+    return tf.add_n([loss] + regularization)
 
-    return loss
+
+def margin_loss(output, y):
+    """
+    Margin loss for Eq.(4).
+    When y_true[i, :] contains not just one `1`, this loss should work too.
+    Not test yet.
+
+    :param y_true: [None, n_classes]
+    :param y_pred: [None, num_capsule]
+    :return: a scalar loss value.
+    """
+    n_class = output.get_shape()[-1]
+    y_vec = tf.one_hot(y, n_class, dtype=tf.float32)
+
+    L = y_vec * tf.square(tf.maximum(0., 0.9 - output)) + \
+        0.5 * (1 - y_vec) * tf.square(tf.maximum(0., output- 0.1))
+
+    return tf.reduce_mean(tf.reduce_sum(L, axis=1))
+
+
+def cross_entropy_loss(output, y):
+    loss = tf.losses.sparse_softmax_cross_entropy(labels=y, logits=output)
+    regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+
+    return tf.add_n([loss] + regularization)
+
 
 # input should be a tensor with size as [batch_size, height, width, channels]
-
-
 def kernel_tile(input, kernel, stride):
     input_shape = input.get_shape()
 

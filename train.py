@@ -12,8 +12,6 @@ from config import cfg, get_coord_add, \
 import time
 import numpy as np
 import os
-# import capsnet_em as net
-import capsnet_legacy as net
 
 import logging
 import daiquiri
@@ -68,13 +66,34 @@ def main(args):
         m_op = tf.placeholder(dtype=tf.float32, shape=())
         with tf.device('/gpu:0'):
             with slim.arg_scope([slim.variable], device='/cpu:0'):
-                # output = net.build_arch(batch_x, coord_add, is_train=True,
-                #                         num_classes=num_classes)
-                # # loss = net.cross_ent_loss(output, batch_labels)
-                # loss = net.spread_loss(output, batch_labels, m_op)
-                output = net.build_arch(batch_x, is_train=True,
-                                        num_classes=num_classes)
-                loss = net.margin_loss(output, batch_labels)
+                # Select routing mechanism.
+                if cfg.routing == 'em': is_em_routing = True
+                elif cfg.routing == 'legacy': is_em_routing = False
+                else: raise ValueError('Invalid routing: ' % cfg.routing)
+
+                if cfg.network == 'conv':
+                    import capsnet_em as net
+                    output = net.build_arch(batch_x, coord_add, is_train=True,
+                                            is_em_routing=is_em_routing,
+                                            num_classes=num_classes)
+                elif cfg.network == 'fc':
+                    import capsnet_fc as net
+                    output = net.build_arch(batch_x, is_train=True,
+                                            is_em_routing=is_em_routing,
+                                            num_classes=num_classes)
+                else:
+                    raise ValueError('Invalid network architecture: ' % cfg.network)
+
+                # Select loss function
+                if cfg.loss_fn == 'spread':
+                    loss = net.spread_loss(output, batch_labels, m_op)
+                elif cfg.loss_fn == 'margin':
+                    loss = net.margin_loss(output, batch_labels)
+                elif cfg.loss_fn == 'cross_en':
+                    loss = net.cross_entropy_loss(output, batch_labels)
+                else:
+                    raise ValueError('Invalid loss function: ' % cfg.loss_fn)
+
                 acc = net.accuracy(output, batch_labels)
 
             """Compute gradient."""
