@@ -6,6 +6,7 @@ E-mail: yzshi08 at utexas.edu
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+from tensorflow.contrib.keras import backend as K
 import numpy as np
 
 from config import cfg
@@ -71,7 +72,7 @@ def squash(vectors, axis=-1):
     """
     s_squared_norm = tf.reduce_sum(tf.square(vectors), axis=axis, keep_dims=True)
     scale = s_squared_norm / (1 + s_squared_norm) / tf.sqrt(s_squared_norm +
-                                                            tf.keras.backend.epsilon())
+                                                            K.epsilon())
     return scale * vectors
 
 
@@ -140,7 +141,7 @@ def build_arch(input, is_train: bool, num_classes: int):
             # regard the first two dimensions as `batch` dimension,
             # then matmul: [input_dim_capsule] x [dim_capsule, input_dim_capsule]^t -> [dim_capsule].
             # inputs_hat.shape = [none, num_capsule, input_num_capsule, dim_capsule]
-            input_hat = tf.map_fn(lambda x: tf.keras.backend.batch_dot(x, W, [2, 3]), input_tiled)
+            input_hat = tf.map_fn(lambda x: K.batch_dot(x, W, [2, 3]), input_tiled)
 
             # begin: routing algorithm ---------------------------------------------------------------------#
             # in forward pass, `inputs_hat_stopped` = `inputs_hat`;
@@ -164,18 +165,18 @@ def build_arch(input, is_train: bool, num_classes: int):
                     # The first two dimensions as `batch` dimension,
                     # then matmal: [input_num_capsule] x [input_num_capsule, dim_capsule] -> [dim_capsule].
                     # outputs.shape=[None, num_capsule, dim_capsule]
-                    output = squash(tf.keras.backend.batch_dot(c, input_hat, [2, 2]))  # [None, 10, 16]
+                    output = squash(K.batch_dot(c, input_hat, [2, 2]))  # [None, 10, 16]
                 else:
                     # Otherwise, use `inputs_hat_stopped` to update `b`.
                     # No gradients flow on this path.
-                    output = squash(tf.keras.backend.batch_dot(c, input_hat_stopped, [2, 2]))
+                    output = squash(K.batch_dot(c, input_hat_stopped, [2, 2]))
 
                     # outputs.shape = [None, num_capsule, dim_capsule]
                     # inputs_hat.shape = [None, num_capsule, input_num_capsule, dim_capsule]
                     # The first two dimensions as `batch` dimension,
                     # then matmal: [dim_capsule] x [input_num_capsule, dim_capsule]^T -> [input_num_capsule].
                     # b.shape=[batch_size, num_capsule, input_num_capsule]
-                    b += tf.keras.backend.batch_dot(output, input_hat_stopped, [2, 3])
+                    b += K.batch_dot(output, input_hat_stopped, [2, 3])
             # End: Routing algorithm -----------------------------------------------------------------------#
     
         with tf.variable_scope('classify') as scope:

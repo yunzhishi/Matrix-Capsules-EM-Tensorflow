@@ -33,8 +33,6 @@ flags.DEFINE_string('test_logdir', 'test_logdir', 'test logs directory')
 
 flags.DEFINE_string('network', 'conv',
     '''Network architecture, choose from ['conv', 'fc']''')
-flags.DEFINE_string('routing', 'em',
-    '''Routing mechanism, choose from ['em', 'legacy']''')
 flags.DEFINE_string('loss_fn', 'spread',
     '''Loss function, choose from ['spread', 'margin', 'cross_en']''')
 

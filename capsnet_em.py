@@ -81,7 +81,7 @@ def kernel_tile(input, kernel, stride):
 # input should be a tensor with size as [batch_size, caps_num_i, 16]
 
 
-def mat_transform(input, caps_num_c, regularizer, tag=False):
+def mat_transform(input, caps_num_c, regularizer):
     batch_size = int(input.get_shape()[0])
     caps_num_i = int(input.get_shape()[1])
     output = tf.reshape(input, shape=[batch_size, caps_num_i, 1, 4, 4])
@@ -100,7 +100,6 @@ def mat_transform(input, caps_num_c, regularizer, tag=False):
 
 
 def build_arch(input, coord_add, is_train: bool, num_classes: int):
-    test1 = []
     data_size = int(input.get_shape()[1])
     # xavier initialization is necessary here to provide higher stability
     # initializer = tf.truncated_normal_initializer(mean=0.0, stddev=0.01)
@@ -140,10 +139,10 @@ def build_arch(input, coord_add, is_train: bool, num_classes: int):
                                     cfg.batch_size * data_size * data_size, 3 * 3 * cfg.B, 1])
 
             with tf.variable_scope('v') as scope:
-                votes = mat_transform(output[:, :, :16], cfg.C, weights_regularizer, tag=True)
+                votes = mat_transform(output[:, :, :16], cfg.C, weights_regularizer)
 
             with tf.variable_scope('routing') as scope:
-                miu, activation, _ = em_routing(votes, activation, cfg.C, weights_regularizer)
+                miu, activation = em_routing(votes, activation, cfg.C, weights_regularizer)
 
             pose = tf.reshape(miu, shape=[cfg.batch_size, data_size, data_size, cfg.C, 16])
             activation = tf.reshape(
@@ -163,7 +162,7 @@ def build_arch(input, coord_add, is_train: bool, num_classes: int):
                 votes = mat_transform(output[:, :, :16], cfg.D, weights_regularizer)
 
             with tf.variable_scope('routing') as scope:
-                miu, activation, _ = em_routing(votes, activation, cfg.D, weights_regularizer)
+                miu, activation = em_routing(votes, activation, cfg.D, weights_regularizer)
 
             pose = tf.reshape(miu, shape=[cfg.batch_size * data_size * data_size, cfg.D, 16])
             activation = tf.reshape(
@@ -185,7 +184,7 @@ def build_arch(input, coord_add, is_train: bool, num_classes: int):
                 votes = tf.concat([coord_add_op, votes], axis=3)
 
             with tf.variable_scope('routing') as scope:
-                miu, activation, test2 = em_routing(
+                miu, activation = em_routing(
                     votes, activation, num_classes, weights_regularizer)
 
             output = tf.reshape(activation, shape=[
@@ -206,9 +205,7 @@ def accuracy(logits, labels):
     return accuracy
 
 
-def em_routing(votes, activation, caps_num_c, regularizer, tag=False):
-    test = []
-
+def em_routing(votes, activation, caps_num_c, regularizer):
     batch_size = int(votes.get_shape()[0])
     caps_num_i = int(activation.get_shape()[1])
     n_channels = int(votes.get_shape()[-1])
@@ -269,4 +266,4 @@ def em_routing(votes, activation, caps_num_c, regularizer, tag=False):
         activation1 = tf.nn.sigmoid(
             (cfg.ac_lambda0 + (iters + 1) * cfg.ac_lambda_step) * (beta_a - tf.reduce_sum(cost_h, axis=2)))
 
-    return miu, activation1, test
+    return miu, activation1

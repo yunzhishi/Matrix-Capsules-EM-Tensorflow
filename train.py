@@ -66,25 +66,19 @@ def main(args):
         m_op = tf.placeholder(dtype=tf.float32, shape=())
         with tf.device('/gpu:0'):
             with slim.arg_scope([slim.variable], device='/cpu:0'):
-                # Select routing mechanism.
-                if cfg.routing == 'em': is_em_routing = True
-                elif cfg.routing == 'legacy': is_em_routing = False
-                else: raise ValueError('Invalid routing: ' % cfg.routing)
-
+                # Select network architecture.
                 if cfg.network == 'conv':
                     import capsnet_em as net
                     output = net.build_arch(batch_x, coord_add, is_train=True,
-                                            is_em_routing=is_em_routing,
                                             num_classes=num_classes)
                 elif cfg.network == 'fc':
                     import capsnet_fc as net
                     output = net.build_arch(batch_x, is_train=True,
-                                            is_em_routing=is_em_routing,
                                             num_classes=num_classes)
                 else:
                     raise ValueError('Invalid network architecture: ' % cfg.network)
 
-                # Select loss function
+                # Select loss function.
                 if cfg.loss_fn == 'spread':
                     loss = net.spread_loss(output, batch_labels, m_op)
                 elif cfg.loss_fn == 'margin':
