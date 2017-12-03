@@ -89,7 +89,7 @@ def mat_transform(input, caps_num_c, regularizer):
     # it has no relationship with the absolute values of w and votes
     # using weights with bigger stddev helps numerical stability
     w = slim.variable('w', shape=[1, caps_num_i, caps_num_c, 4, 4], dtype=tf.float32,
-                      initializer=tf.keras.initializers.glorot_uniform(),
+                      initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1.0),
                       regularizer=regularizer)
 
     w = tf.tile(w, [batch_size, 1, 1, 1, 1])
@@ -102,15 +102,17 @@ def mat_transform(input, caps_num_c, regularizer):
 def build_arch(input, coord_add, is_train: bool, num_classes: int):
     data_size = int(input.get_shape()[1])
     # xavier initialization is necessary here to provide higher stability
-    # initializer = tf.truncated_normal_initializer(mean=0.0, stddev=0.01)
+    initializer = tf.truncated_normal_initializer(mean=0.0, stddev=1.0)
     # instead of initializing bias with constant 0, a truncated normal initializer is exploited here for higher stability
-    bias_initializer = tf.truncated_normal_initializer(
-        mean=0.0, stddev=0.01)  # tf.constant_initializer(0.0)
+    bias_initializer = tf.truncated_normal_initializer(mean=0.0, stddev=0.01)  # tf.constant_initializer(0.0)
     # The paper didnot mention any regularization, a common l2 regularizer to weights is added here
     weights_regularizer = tf.contrib.layers.l2_regularizer(5e-04)
 
     # weights_initializer=initializer,
-    with slim.arg_scope([slim.conv2d], trainable=is_train, biases_initializer=bias_initializer, weights_regularizer=weights_regularizer):
+    with slim.arg_scope([slim.conv2d], trainable=is_train,
+                        initializer=initializer,
+                        biases_initializer=bias_initializer,
+                        weights_regularizer=weights_regularizer):
         with tf.variable_scope('relu_conv1') as scope:
             output = slim.conv2d(input, num_outputs=cfg.A, kernel_size=[
                                  5, 5], stride=2, padding='VALID', scope=scope)
@@ -223,14 +225,14 @@ def em_routing(votes, activation, caps_num_c, regularizer):
     sigma_square = tf.reduce_sum(tf.square(votes - miu) * r1, axis=1, keep_dims=True) + cfg.epsilon
 
     beta_v = slim.variable('beta_v', shape=[caps_num_c, n_channels], dtype=tf.float32,
-                           initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.01),
+                           initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1),
                            regularizer=regularizer)
     r_sum = tf.reshape(r_sum, [batch_size, caps_num_c, 1])
     cost_h = (beta_v + tf.log(tf.sqrt(tf.reshape(sigma_square,
                                                  shape=[batch_size, caps_num_c, n_channels])))) * r_sum
 
     beta_a = slim.variable('beta_a', shape=[caps_num_c], dtype=tf.float32,
-                           initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.01),
+                           initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1),
                            regularizer=regularizer)
     activation1 = tf.nn.sigmoid(cfg.ac_lambda0 * (beta_a - tf.reduce_sum(cost_h, axis=2)))
 
