@@ -161,6 +161,7 @@ def main(args):
 
             # Add a new progress bar
             if ((step+1) % num_batches_per_epoch) == 0:
+                toc = time.time()
                 val_loss_value, val_acc_value = (0.0, 0.0)
                 for i in range(num_batches_test):
                     val_batch = sess.run([loss, acc], feed_dict={use_train_data: False,
@@ -173,7 +174,7 @@ def main(args):
                                                     m_op: m})
                 summary_writer.add_summary(valid_sum_str, step)
                 print('\nEpoch %d/%d in ' % (step//num_batches_per_epoch+1, cfg.epoch)
-                      + '%.1fs' % (time.time() - tic) + ' - loss: %f' % val_loss_value
+                      + '%.1fs' % (toc - tic) + ' - loss: %f' % val_loss_value
                       + ' - acc: %f' % val_acc_value)
 
         """Join threads"""
