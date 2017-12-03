@@ -69,7 +69,7 @@ def get_num_classes(dataset_name: str):
     return options[dataset_name]
 
 
-from utils import create_inputs_mnist, create_inputs_norb
+from utils import create_inputs_mnist, create_inputs_cifar10, create_inputs_norb
 
 
 def get_create_inputs(dataset_name: str, is_train: bool, epochs: int):
