@@ -50,7 +50,8 @@ def main(args):
         valid_sum = []
 
         """Use exponential decay leanring rate?"""
-        lrn_rate = tf.maximum(tf.train.exponential_decay(1e-2, global_step, num_batches_per_epoch, 0.8), 1e-5)
+        lrn_rate = tf.maximum(tf.train.exponential_decay(
+            1e-3, global_step, num_batches_per_epoch, 0.8), 1e-5)
         summaries.append(tf.summary.scalar('learning_rate', lrn_rate))
         opt = tf.train.AdamOptimizer(lrn_rate)
 
@@ -66,14 +67,16 @@ def main(args):
         m_op = tf.placeholder(dtype=tf.float32, shape=())
         with tf.device('/gpu:0'):
             with slim.arg_scope([slim.variable], device='/cpu:0'):
+                norm_batch_x = tf.contrib.layers.batch_norm(batch_x, is_training=True)
+
                 # Select network architecture.
                 if cfg.network == 'conv':
                     import capsnet_em as net
-                    output = net.build_arch(batch_x, coord_add, is_train=True,
+                    output = net.build_arch(norm_batch_x, coord_add, is_train=True,
                                             num_classes=num_classes)
                 elif cfg.network == 'fc':
                     import capsnet_fc as net
-                    output = net.build_arch(batch_x, is_train=True,
+                    output = net.build_arch(norm_batch_x, is_train=True,
                                             num_classes=num_classes)
                 else:
                     raise ValueError('Invalid network architecture: ' % cfg.network)
@@ -92,6 +95,10 @@ def main(args):
 
             """Compute gradient."""
             grad = opt.compute_gradients(loss)
+            # See: https://stackoverflow.com/questions/40701712/how-to-check-nan-in-gradients-in-tensorflow-when-updating
+            grad_check = [tf.check_numerics(g, message='Gradient NaN Found!')
+                          for g, _ in grad] + \
+                         [tf.check_numerics(loss, message='Loss NaN Found')]
 
         """Add to summary."""
         summaries.append(tf.summary.scalar('loss', loss))
@@ -100,7 +107,10 @@ def main(args):
         valid_sum.append(tf.summary.scalar('val_acc', acc))
 
         """Apply graident."""
-        train_op = opt.apply_gradients(grad, global_step=global_step)
+        with tf.control_dependencies(grad_check):
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                train_op = opt.apply_gradients(grad, global_step=global_step)
 
         """Set Session settings."""
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=cfg.gpu_frac)
@@ -147,16 +157,18 @@ def main(args):
                                                  verbose=(1 if cfg.progbar else 0))
 
             """"TF queue would pop batch until no file"""
-            _, loss_value, acc_value = sess.run([train_op, loss, acc],
-                                                 feed_dict={use_train_data: True,
-                                                            m_op: m})
-            # logger.info('%d iteration finishs in ' % step + '%f second' %
-            #             (time.time() - tic) + ' loss=%f' % loss_value)
-            progbar.update((step % num_batches_per_epoch),
-                           values=[('loss', loss_value), ('acc', acc_value)])
-
-            """Check NaN"""
-            assert not np.isnan(loss_value), 'loss is nan'
+            try:
+                _, loss_value, acc_value = sess.run([train_op, loss, acc],
+                                                     feed_dict={use_train_data: True,
+                                                                m_op: m})
+                progbar.update((step % num_batches_per_epoch),
+                               values=[('loss', loss_value), ('acc', acc_value)])
+            except KeyboardInterrupt:
+                sess.close()
+                sys.exit()
+            except tf.errors.InvalidArgumentError:
+                logger.warning('%d iteration contains NaN gradients. Discard.' % step)
+                continue
 
             """Write to summary."""
             if step % 100 == 0:

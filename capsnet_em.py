@@ -26,9 +26,9 @@ def spread_loss(output, y, m):
     """Paper eq(5)."""
     loss = tf.square(tf.maximum(0., m - (at - output1)))
     loss = tf.matmul(loss, 1. - y_vec)
-    loss = tf.reduce_sum(loss)
-
+    loss = tf.reduce_mean(loss)
     regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+
     return tf.add_n([loss] + regularization)
 
 
@@ -53,6 +53,7 @@ def margin_loss(output, y):
 
 def cross_entropy_loss(output, y):
     loss = tf.losses.sparse_softmax_cross_entropy(labels=y, logits=output)
+    loss = tf.reduce_mean(loss)
     regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 
     return tf.add_n([loss] + regularization)
@@ -112,8 +113,10 @@ def build_arch(input, coord_add, is_train: bool, num_classes: int):
     with slim.arg_scope([slim.conv2d], trainable=is_train,
                         biases_initializer=bias_initializer,
                         weights_regularizer=weights_regularizer):
+        output = slim.batch_norm(input, center=False, is_training=is_train, trainable=is_train)
+
         with tf.variable_scope('relu_conv1') as scope:
-            output = slim.conv2d(input, num_outputs=cfg.A, kernel_size=[
+            output = slim.conv2d(output, num_outputs=cfg.A, kernel_size=[
                                  5, 5], stride=2, padding='VALID', scope=scope)
             data_size = int(np.floor((data_size - 4) / 2))
 
@@ -201,7 +204,7 @@ def accuracy(logits, labels):
     logits_idx = tf.to_int32(tf.argmax(logits, axis=1))
     logits_idx = tf.reshape(logits_idx, shape=(cfg.batch_size,))
     correct_preds = tf.equal(tf.to_int32(labels), logits_idx)
-    accuracy = tf.reduce_sum(tf.cast(correct_preds, tf.float32)) / cfg.batch_size
+    accuracy = tf.reduce_mean(tf.cast(correct_preds, tf.float32))
 
     return accuracy
 

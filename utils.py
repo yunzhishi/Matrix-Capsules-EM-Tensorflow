@@ -36,9 +36,9 @@ def create_inputs_norb(is_train: bool, epochs: int):
 
     # naive minimax to [0,1]
     if is_train:
-        image = tf.random_crop(image, [32, 32, 1]) / 255.
+        image = tf.random_crop(image, [32, 32, 1])
     else:
-        image = tf.slice(image, [8, 8, 0], [32, 32, 1])/255. #image[8:40, 8:40, 1]/255.
+        image = tf.slice(image, [8, 8, 0], [32, 32, 1]) #image[8:40, 8:40, 1]/255.
 
     image = (image-0.5)*2.
 
