@@ -44,17 +44,21 @@ def create_inputs_norb(is_train: bool, epochs: int):
 
     image = (image-0.5)*2.
 
-    x, y = tf.train.shuffle_batch([image, label], num_threads=cfg.num_threads, batch_size=cfg.batch_size, capacity=cfg.batch_size * 64,
-                                  min_after_dequeue=cfg.batch_size * 32, allow_smaller_final_batch=False)
+    x, y = tf.train.shuffle_batch([image, label], num_threads=cfg.num_threads,
+                                  batch_size=cfg.batch_size, capacity=cfg.batch_size*64,
+                                  min_after_dequeue=cfg.batch_size*32,
+                                  allow_smaller_final_batch=False)
 
     return x, y
 
 
 def create_inputs_mnist(is_train):
     tr_x, tr_y = load_mnist(cfg.dataset, is_train)
-    data_queue = tf.train.slice_input_producer([tr_x, tr_y], capacity=64 * 8)
-    x, y = tf.train.shuffle_batch(data_queue, num_threads=8, batch_size=cfg.batch_size, capacity=cfg.batch_size * 64,
-                                  min_after_dequeue=cfg.batch_size * 32, allow_smaller_final_batch=False)
+    data_queue = tf.train.slice_input_producer([tr_x, tr_y], capacity=64*cfg.num_threads)
+    x, y = tf.train.shuffle_batch(data_queue, num_threads=cfg.num_threads,
+                                  batch_size=cfg.batch_size, capacity=cfg.batch_size*64,
+                                  min_after_dequeue=cfg.batch_size*32,
+                                  allow_smaller_final_batch=False)
 
     return (x, y)
 
