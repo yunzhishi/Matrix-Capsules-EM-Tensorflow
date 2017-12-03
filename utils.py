@@ -9,6 +9,8 @@ import data.smallNORB as norb
 import logging
 import daiquiri
 
+from six.moves import cPickle as pickle
+
 daiquiri.setup(level=logging.DEBUG)
 logger = daiquiri.getLogger(__name__)
 
