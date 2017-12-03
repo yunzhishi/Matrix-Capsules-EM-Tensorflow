@@ -89,7 +89,7 @@ def load_mnist(path, is_training):
     
     
 def create_inputs_cifar10(is_train):
-    processed_dir = './data/cifar10/'
+    processed_dir = './data/cifar-10-batches-py/'
     tr_x, tr_y = load_cifar10(processed_dir, is_train)
     data_queue = tf.train.slice_input_producer([tr_x, tr_y], capacity=64 * 8)
     x, y = tf.train.shuffle_batch(data_queue, num_threads=8, batch_size=cfg.batch_size, capacity=cfg.batch_size * 64, min_after_dequeue=cfg.batch_size * 32, allow_smaller_final_batch=False)
