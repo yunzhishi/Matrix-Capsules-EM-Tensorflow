@@ -50,10 +50,10 @@ def main(args):
         valid_sum = []
 
         """Use exponential decay leanring rate?"""
-        lrn_rate = tf.maximum(tf.train.exponential_decay(
-            1e-3, global_step, num_batches_per_epoch, 0.8), 1e-5)
-        summaries.append(tf.summary.scalar('learning_rate', lrn_rate))
-        opt = tf.train.AdamOptimizer(lrn_rate)
+        # lrn_rate = tf.maximum(tf.train.exponential_decay(
+        #     1e-2, global_step, num_batches_per_epoch, 0.8), 1e-5)
+        # summaries.append(tf.summary.scalar('learning_rate', lrn_rate))
+        opt = tf.train.AdamOptimizer(learning_rate=0.001)
 
         """Get batch from data queue."""
         train_q = create_inputs()
@@ -185,7 +185,7 @@ def main(args):
 
                 """Save model periodically"""
                 ckpt_path = os.path.join(cfg.logdir,
-                                         'model-{0:.4f}}.ckpt'.format(loss_value))
+                                         'model-{0:.4f}.ckpt'.format(loss_value))
                 saver.save(sess, ckpt_path, global_step=step)
 
             # Add a new progress bar

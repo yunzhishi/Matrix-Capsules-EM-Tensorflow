@@ -19,7 +19,7 @@ flags.DEFINE_float('epsilon', tf.keras.backend.epsilon(), 'epsilon')
 ################################
 flags.DEFINE_integer('A', 32, 'number of channels in output from ReLU Conv1')
 flags.DEFINE_integer('B', 8, 'number of capsules in output from PrimaryCaps')
-flags.DEFINE_integer('C', 8, 'number of channels in output from ConvCaps1')
+flags.DEFINE_integer('C', 16, 'number of channels in output from ConvCaps1')
 flags.DEFINE_integer('D', 16, 'number of channels in output from ConvCaps2')
 
 ############################

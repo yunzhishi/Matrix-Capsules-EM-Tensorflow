@@ -7,6 +7,7 @@ E-mail: zhangsuofei at njupt.edu.cn
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
+import math
 
 from config import cfg
 
@@ -245,14 +246,21 @@ def em_routing(votes, activation, caps_num_c, regularizer):
         # p_c_h = 1 / (tf.sqrt(sigma_square)) * tf.exp(-tf.square(votes - miu) / (2 * sigma_square))
         # p_c_h = p_c_h / (tf.reduce_max(p_c_h, axis=[2, 3], keep_dims=True) / 10.0)
         # p_c = tf.reduce_prod(p_c_h, axis=3)
-        log_p_c_h = -tf.log(tf.sqrt(sigma_square)) - (tf.square(votes-miu) / (2*sigma_square))
-        log_p_c_h = log_p_c_h - tf.reduce_max(log_p_c_h, axis=[2,3], keep_dims=True) - tf.log(10.0)
-        p_c = tf.exp(tf.reduce_sum(log_p_c_h, axis=3))
-        a1 = tf.reshape(activation1, shape=[batch_size, 1, caps_num_c])
-        ap = p_c * a1
 
-        sum_ap = tf.reduce_sum(ap, axis=2, keep_dims=True)
-        r = ap / (sum_ap + cfg.epsilon)
+        p_c_h = -0.5 * tf.log(2 * math.pi * sigma_square) -tf.square(votes - miu) / (2 * sigma_square)
+        p_c = tf.reduce_sum(p_c_h, axis=3)
+        a1 = tf.log(tf.reshape(activation1, shape=[batch_size, 1, caps_num_c]))
+        ap = p_c + a1
+        sum_ap = tf.reduce_logsumexp(ap, axis=2, keep_dims=True)
+        r = tf.exp(ap - sum_ap)
+
+        # log_p_c_h = -tf.log(tf.sqrt(sigma_square)) - (tf.square(votes-miu) / (2*sigma_square))
+        # log_p_c_h = log_p_c_h - tf.reduce_max(log_p_c_h, axis=[2,3], keep_dims=True) - tf.log(10.0)
+        # p_c = tf.exp(tf.reduce_sum(log_p_c_h, axis=3))
+        # a1 = tf.reshape(activation1, shape=[batch_size, 1, caps_num_c])
+        # ap = p_c * a1
+        # sum_ap = tf.reduce_sum(ap, axis=2, keep_dims=True)
+        # r = ap / (sum_ap + cfg.epsilon)
 
         # m-step
         r = r * activation
