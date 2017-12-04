@@ -11,8 +11,14 @@ flags.DEFINE_float('ac_lambda_step', 0.01,
 
 flags.DEFINE_integer('batch_size', 32, 'batch size')
 flags.DEFINE_integer('epoch', 50, 'epoch')
-flags.DEFINE_integer('iter_routing', 1, 'number of iterations')
 flags.DEFINE_float('epsilon', 1e-9,'epsilon')
+
+flags.DEFINE_integer('iter_routing', 1, 'number of iterations')
+flags.DEFINE_boolean('is_mat', True, 'choose pose matrix or pose vector')
+flags.DEFINE_string('network', 'conv',
+    '''Network architecture, choose from ['conv', 'fc']''')
+flags.DEFINE_string('loss_fn', 'spread',
+    '''Loss function, choose from ['spread', 'margin', 'cross_en']''')
 
 ################################
 #    structure parameters      #
@@ -32,11 +38,6 @@ flags.DEFINE_string('logdir', 'logdir', 'logs directory')
 flags.DEFINE_string('test_logdir', 'test_logdir', 'test logs directory')
 flags.DEFINE_float('gpu_frac', 1.0, 'fraction of GPU memory to allocate')
 flags.DEFINE_boolean('progbar', False, 'display Keras-like progress bar')
-
-flags.DEFINE_string('network', 'conv',
-    '''Network architecture, choose from ['conv', 'fc']''')
-flags.DEFINE_string('loss_fn', 'spread',
-    '''Loss function, choose from ['spread', 'margin', 'cross_en']''')
 
 cfg = tf.app.flags.FLAGS
 

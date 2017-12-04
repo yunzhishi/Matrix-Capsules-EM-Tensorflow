@@ -86,17 +86,27 @@ def kernel_tile(input, kernel, stride):
 def mat_transform(input, caps_num_c, regularizer):
     batch_size = int(input.get_shape()[0])
     caps_num_i = int(input.get_shape()[1])
-    output = tf.reshape(input, shape=[batch_size, caps_num_i, 1, 4, 4])
+    if cfg.is_mat:  # 4x4 pose matrix
+        output = tf.reshape(input, shape=[batch_size, caps_num_i, 1, 4, 4])
+        shape_w = [1, caps_num_i, caps_num_c, 4, 4]
+    else:  # length 16 pose vector
+        output = tf.reshape(input, shape=[batch_size, caps_num_i, 1, 16])
+        shape_w = [1, caps_num_i, caps_num_c, 16]
     # the output of capsule is miu, the mean of a Gaussian, and activation, the sum of probabilities
     # it has no relationship with the absolute values of w and votes
     # using weights with bigger stddev helps numerical stability
-    w = slim.variable('w', shape=[1, caps_num_i, caps_num_c, 4, 4], dtype=tf.float32,
+    w = slim.variable('w', shape=shape_w, dtype=tf.float32,
                       initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1.0),
                       regularizer=regularizer)
 
-    w = tf.tile(w, [batch_size, 1, 1, 1, 1])
-    output = tf.tile(output, [1, 1, caps_num_c, 1, 1])
-    votes = tf.reshape(tf.matmul(output, w), [batch_size, caps_num_i, caps_num_c, 16])
+    if cfg.is_mat:
+        w = tf.tile(w, [batch_size, 1, 1, 1, 1])
+        output = tf.tile(output, [1, 1, caps_num_c, 1, 1])
+        votes = tf.reshape(tf.matmul(output, w), [batch_size, caps_num_i, caps_num_c, 16])
+    else:
+        w = tf.tile(w, [batch_size, 1, 1, 1])
+        output = tf.tile(output, [1, 1, caps_num_c, 1])
+        votes = tf.reshape(output*w, [batch_size, caps_num_i, caps_num_c, 16])
 
     return votes
 
