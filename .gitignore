@@ -1,5 +1,6 @@
 __pycache__/
 mnist/
 smallNORB/
-logdir/
+logdir*/
 nohup.out
+*.out
